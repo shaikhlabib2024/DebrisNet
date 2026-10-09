@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DebrisNet - NASA Space Domain Awareness & Collision Processor</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300f0ff'><circle cx='12' cy='12' r='10'/></svg>" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- 3D Three.js WebGL Viewport -->
+  <div id="canvas-container"></div>
+
+  <!-- HUD Overlay -->
+  <div id="ui-root">
+    <!-- Top Telemetry Header -->
+    <header class="top-header glass-panel interactive">
+      <div class="brand-badge">
+        <span class="brand-logo">DEBRISNET</span>
+        <span class="brand-sub">NASA CARA / SDA PROTOCOL</span>
+      </div>
+
+      <div class="metrics-strip">
+        <div class="metric-card">
+          <span class="metric-label">Tracked Objects (LEO)</span>
+          <span class="metric-val" id="metric-objects">605</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Active Conjunctions</span>
+          <span class="metric-val danger" id="metric-conjunctions">--</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Max Collision Prob (Pc)</span>
+          <span class="metric-val danger" id="metric-max-pc">--</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Deflection Readiness</span>
+          <span class="metric-val success">100% (READY)</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Center Workspace (Sidebars) -->
+    <div class="workspace-grid">
+      <!-- Left Panel: Conjunction Assessment Alerts -->
+      <aside class="side-panel glass-panel interactive">
+        <div class="panel-header">
+          <span class="panel-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            CONJUNCTION ALERTS (7-DAY)
+          </span>
+          <span class="badge" style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--cyan-neon);" id="alert-count-badge">0 ALERTS</span>
+        </div>
+        <div class="panel-content" id="cdm-feed-container">
+          <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim); text-align: center; padding: 2rem 0;">
+            Scanning orbital catalog for close approaches...
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Panel: Mission Sandbox & Kessler Trigger -->
+      <aside class="side-panel glass-panel interactive" style="width: 320px;">
+        <div class="panel-header">
+          <span class="panel-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+            MISSION SANDBOX
+          </span>
+        </div>
+        <div class="panel-content">
+          <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+            <span class="stat-title">KESSLER CASCADE TEST</span>
+            <p style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4;">
+              Simulate hypervelocity fragmentation collision under the NASA Standard Breakup Model.
+            </p>
+            <button class="btn btn-danger" id="btn-trigger-kessler">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              SIMULATE IMPACT & FRAGMENT
+            </button>
+            <button class="btn btn-cyan" id="btn-clear-kessler" style="display: none;">
+              RESET CASCADE CLOUD
+            </button>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 0.5rem 0;" />
+
+          <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+            <span class="stat-title">SPACE WEATHER DRAG (NOAA SWPC)</span>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.75rem; color: var(--text-main);">Geomagnetic Storm (Kp=6.2)</span>
+              <input type="checkbox" id="toggle-space-weather" checked style="cursor: pointer;" />
+            </div>
+            <p style="font-size: 0.68rem; color: var(--text-dim);">
+              Simulates thermospheric drag expansion shifting debris decay rate.
+            </p>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 0.5rem 0;" />
+
+          <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <span class="stat-title">ORBITAL SHELL DENSITY</span>
+            <div style="display: flex; justify-content: space-between; font-size: 0.7rem; font-family: var(--font-mono); color: var(--text-muted);">
+              <span>400 - 600 km (ISS/Tiangong)</span>
+              <span style="color: var(--cyan-neon);">NOMINAL</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.7rem; font-family: var(--font-mono); color: var(--text-muted);">
+              <span>750 - 950 km (Iridium/Cosmos)</span>
+              <span style="color: var(--red-alert);">CRITICAL DENSITY</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Bottom Dock: Controls & Asset Selector -->
+    <footer class="bottom-dock glass-panel interactive">
+      <div class="dock-group">
+        <span class="dock-label">Target Asset:</span>
+        <select class="asset-select" id="select-primary-asset">
+          <option value="25544">ISS (ZARYA) - High Risk</option>
+          <option value="48274">TIANGONG (CSS)</option>
+          <option value="20580">HUBBLE SPACE TELESCOPE</option>
+          <option value="43463">BANGABANDHU-1 (LEO Relay Sim)</option>
+          <option value="49260">LANDSAT 9 (NASA/USGS)</option>
+        </select>
+      </div>
+
+      <div class="dock-group">
+        <span class="dock-label">Simulation Time Warp:</span>
+        <button class="btn btn-cyan" id="btn-warp-1x">1x</button>
+        <button class="btn btn-cyan" id="btn-warp-10x">10x</button>
+        <button class="btn btn-cyan" id="btn-warp-100x">100x</button>
+        <span id="sim-clock-display" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--cyan-neon); margin-left: 0.5rem;">
+          UTC: 2026-10-10 00:00:00
+        </span>
+      </div>
+
+      <div class="dock-group">
+        <button class="btn btn-cyan" id="btn-reset-cam">
+          RESET ORBIT VIEW
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Collision Avoidance Maneuver (CAM) Modal -->
+  <div class="modal-overlay" id="cam-modal">
+    <div class="modal-box glass-panel">
+      <div class="modal-title">
+        <span>COLLISION AVOIDANCE MANEUVER (CAM) PLAN</span>
+        <button class="modal-close-btn" id="btn-close-modal">&times;</button>
+      </div>
+
+      <div style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.5;">
+        Automated fuel-optimal impulse thruster burn calculation using along-track orbital mechanics perturbation.
+      </div>
+
+      <div class="maneuver-grid">
+        <div class="maneuver-metric-box highlight">
+          <span class="box-title">Required Delta-V</span>
+          <span class="box-val green" id="cam-dv-val">0.385 m/s</span>
+          <span style="font-size: 0.62rem; color: var(--text-dim);">Along-track 95%</span>
+        </div>
+        <div class="maneuver-metric-box">
+          <span class="box-title">Propellant Mass</span>
+          <span class="box-val cyan" id="cam-fuel-val">0.628 kg</span>
+          <span style="font-size: 0.62rem; color: var(--text-dim);">Hydrazine (Isp: 250s)</span>
+        </div>
+        <div class="maneuver-metric-box">
+          <span class="box-title">Post-Burn Miss Dist</span>
+          <span class="box-val green" id="cam-new-miss-val">5.82 km</span>
+          <span style="font-size: 0.62rem; color: var(--text-dim);">Target Margin: 5 km</span>
+        </div>
+        <div class="maneuver-metric-box">
+          <span class="box-title">Residual Prob (Pc)</span>
+          <span class="box-val green" id="cam-residual-pc">1.2 × 10⁻⁸</span>
+          <span style="font-size: 0.62rem; color: var(--text-dim);">Hazard Cleared</span>
+        </div>
+        <div class="maneuver-metric-box">
+          <span class="box-title">Economic Cost</span>
+          <span class="box-val" id="cam-cost-val">$13,816 USD</span>
+          <span style="font-size: 0.62rem; color: var(--text-dim);">Launch-mass basis</span>
+        </div>
+        <div class="maneuver-metric-box">
+          <span class="box-title">Lifespan Impact</span>
+          <span class="box-val" id="cam-lifespan-val">-18 Days</span>
+          <span style="font-size: 0.62rem; color: var(--text-dim);">Station-keeping delta</span>
+        </div>
+      </div>
+
+      <div>
+        <span class="box-title" style="display: block; margin-bottom: 0.35rem;">Official NASA CCSDS Conjunction Data Message (CDM):</span>
+        <pre class="cdm-code-block" id="cam-cdm-preview"></pre>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.5rem;">
+        <button class="btn btn-cyan" id="btn-download-cdm">
+          DOWNLOAD CDM FILE (.TXT)
+        </button>
+        <button class="btn btn-success" id="btn-execute-burn-sim">
+          EXECUTE AVOIDANCE BURN SIMULATION
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
